@@ -49,7 +49,12 @@ async function loadSlots() {
 loadSlots(); setInterval(() => { if (!document.hidden) loadSlots(); }, 60000);''' + s[j:]
 
 # 3) confirmation copy now that both phones get a text
-R("Christopher will text <span class=\"num\">${esc(state.phone)}</span> to confirm.", "We just texted <span class=\"num\">${esc(state.phone)}</span> the details. Christopher will text to confirm.")
+# (kept the original "Christopher will text ... to confirm" line: texts are optional until Twilio is set up)
+# confirmation: no monospace text box or copy button
+R('''    <textarea readonly id="summary" aria-label="Booking summary">${esc(summaryText())}</textarea>
+''', "")  # the booking card beside it already lists the details
+R('''      <button type="button" class="btn btn-line" id="copy">Copy summary</button>
+''', "")
 R("This preview couldn't save your request by itself.", "We couldn't save your request just now.")
 # 3b) all booking happens on this site: no Square hand-off
 R('const SQUARE = "https://book.squareup.com/appointments/ejiooxptyzqtr0/location/L72H9YAYZBYYJ/services";\n', "")

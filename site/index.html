@@ -1319,11 +1319,9 @@ function paneDone() {
     <p class="ref">${s ? "REQUEST " + esc(state.ref) + " RECEIVED" : "ONE MORE STEP"}</p>
     <h3>${s ? "You're on the schedule." : "Send this to lock in your time."}</h3>
     <p style="color:var(--mute)">${s
-      ? `Your ${esc(hourLabel(state.hour))} start on ${esc(dateLabel(state.date))} is held. We just texted <span class="num">${esc(state.phone)}</span> the details. Christopher will text to confirm.`
+      ? `Your ${esc(hourLabel(state.hour))} start on ${esc(dateLabel(state.date))} is held. Christopher will text <span class="num">${esc(state.phone)}</span> to confirm.`
       : `We couldn't save your request just now. Text it to <span class="num">${PHONE}</span> and we'll get you scheduled.`}</p>
-    <textarea readonly id="summary" aria-label="Booking summary">${esc(summaryText())}</textarea>
     <div class="row">
-      <button type="button" class="btn btn-line" id="copy">Copy summary</button>
       <button type="button" class="btn btn-line" id="again">Book another vehicle</button>
     </div>
   </div>`;
