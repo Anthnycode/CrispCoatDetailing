@@ -2,6 +2,10 @@
   publish = "site"
   functions = "netlify/functions"
 
+# These values are public (shown on the site), so the secrets scan should not flag them.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,TZ_NAME,OWNER_PHONES"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
