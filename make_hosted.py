@@ -66,5 +66,8 @@ R('<div id="owner" hidden style="margin-top:56px">', '<div id="owner" hidden sty
 R('<a class="staff-link" href="#staff">Staff</a>', '<a class="staff-link" href="/staff" rel="nofollow">Staff</a>')
 # the in-page staff view runs on the Claude artifact db; the hosted site uses /staff instead
 R('<section class="stf" id="staff" hidden', '<section class="stf" id="staff" hidden style="display:none"')
+# 5) the artifact host adds the page skeleton itself; a real host needs it in the file (standards mode + phone layout)
+assert s.startswith('<meta charset="utf-8">')
+s = '<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<meta name="theme-color" content="#090c0b">' + s[len('<meta charset="utf-8">'):]
 open(out, "w").write(s)
 print("ok", len(s))
