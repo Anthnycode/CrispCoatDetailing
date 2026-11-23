@@ -1,2 +1,3 @@
-// Filled in at go-live. The anon key is meant to be public; staff data is protected by the database rules.
-window.CC_CONFIG = { supabaseUrl: "https://YOUR-PROJECT.supabase.co", supabaseAnonKey: "YOUR-ANON-KEY" };
+// Supabase project for the staff dashboard. The publishable key is meant to be public;
+// staff data is protected by the database rules (row-level security).
+window.CC_CONFIG = { supabaseUrl: "https://dhbgukibousrkzzlitzb.supabase.co", supabaseAnonKey: "sb_publishable_1fg_QPrYXlPSJRMxYiWcNw_ctCLZpFy" };

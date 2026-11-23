@@ -6,7 +6,7 @@ const TZ = process.env.TZ_NAME || "America/Los_Angeles";
 async function sb(path, opts = {}) {
   const r = await fetch(SB + "/rest/v1/" + path, {
     ...opts,
-    headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json", Prefer: "return=representation", ...(opts.headers || {}) },
+    headers: { apikey: KEY, ...(KEY && KEY.startsWith("eyJ") ? { Authorization: "Bearer " + KEY } : {}), "Content-Type": "application/json", Prefer: "return=representation", ...(opts.headers || {}) },
   });
   const text = await r.text();
   if (!r.ok) { const e = new Error(text || r.statusText); e.status = r.status; throw e; }

@@ -62,3 +62,8 @@ create policy staff_read_self on staff        for select using (is_staff());
 create policy staff_all       on bookings     for all    using (is_staff()) with check (is_staff());
 create policy staff_hours     on weekly_hours for all    using (is_staff()) with check (is_staff());
 create policy staff_blocks    on blocks       for all    using (is_staff()) with check (is_staff());
+
+-- Table access for the API roles (row-level security above still decides what each can see).
+grant usage on schema public to authenticated, service_role;
+grant all on all tables    in schema public to authenticated, service_role;
+grant all on all sequences in schema public to authenticated, service_role;
