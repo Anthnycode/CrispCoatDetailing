@@ -836,7 +836,6 @@ footer { border-top: 1px solid var(--line); padding-block: 64px 40px; }
 
 <script>
 /* ---------- Data: crispcoatdetailing.com/packages and the November Instagram flyer ---------- */
-const SQUARE = "https://book.squareup.com/appointments/ejiooxptyzqtr0/location/L72H9YAYZBYYJ/services";
 const PHONE = "(840) 278-3041";
 const PROMO_ENDS = new Date(2026, 11, 1); // Winter Protection Plan runs through November 30, 2026
 const promoLive = () => new Date() < PROMO_ENDS;
@@ -1321,11 +1320,10 @@ function paneDone() {
     <h3>${s ? "You're on the schedule." : "Send this to lock in your time."}</h3>
     <p style="color:var(--mute)">${s
       ? `Your ${esc(hourLabel(state.hour))} start on ${esc(dateLabel(state.date))} is held. We just texted <span class="num">${esc(state.phone)}</span> the details. Christopher will text to confirm.`
-      : `We couldn't save your request just now. Copy it and text it to <span class="num">${PHONE}</span>, or finish on the Square booking page.`}</p>
+      : `We couldn't save your request just now. Text it to <span class="num">${PHONE}</span> and we'll get you scheduled.`}</p>
     <textarea readonly id="summary" aria-label="Booking summary">${esc(summaryText())}</textarea>
     <div class="row">
       <button type="button" class="btn btn-line" id="copy">Copy summary</button>
-      <a class="btn ${s ? "btn-line" : "btn-ink"}" href="${SQUARE}" target="_blank" rel="noopener">${s ? "Pay ahead on Square" : "Finish on Square"}</a>
       <button type="button" class="btn btn-line" id="again">Book another vehicle</button>
     </div>
   </div>`;
@@ -1392,7 +1390,11 @@ async function send(b) {
       $("#pane").insertAdjacentHTML("afterbegin", '<p class="err">Someone just took that time. Pick another one.</p>'); return;
     }
     if (r.ok && res.ref) { saved = true; state.ref = res.ref; state.saved = true; renderBooking(); $("#book").scrollIntoView({ block: "start", behavior: "smooth" }); return; }
+    if (r.status === 400 && res.error) throw new Error(res.error);
   } catch (e) { saved = false; }
+  b.disabled = false; b.textContent = "Send booking request";
+  $("#err").textContent = "We couldn't send your booking just now. Check your connection and tap Send again. If it keeps happening, text us at " + PHONE + ".";
+  return;
   state.ref = ref; state.saved = saved; renderBooking();
   $("#book").scrollIntoView({ block: "start", behavior: "smooth" });
 }

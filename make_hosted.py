@@ -24,7 +24,11 @@ s = s[:i] + '''  let saved = false;
       $("#pane").insertAdjacentHTML("afterbegin", '<p class="err">Someone just took that time. Pick another one.</p>'); return;
     }
     if (r.ok && res.ref) { saved = true; state.ref = res.ref; state.saved = true; renderBooking(); $("#book").scrollIntoView({ block: "start", behavior: "smooth" }); return; }
+    if (r.status === 400 && res.error) throw new Error(res.error);
   } catch (e) { saved = false; }
+  b.disabled = false; b.textContent = "Send booking request";
+  $("#err").textContent = "We couldn't send your booking just now. Check your connection and tap Send again. If it keeps happening, text us at " + PHONE + ".";
+  return;
 ''' + s[j:]
 R("const ref = \"CC-\" + Date.now().toString(36).slice(-5).toUpperCase();\n", "const ref = \"CC-\" + Date.now().toString(36).slice(-5).toUpperCase();\n")
 
@@ -47,6 +51,11 @@ loadSlots(); setInterval(() => { if (!document.hidden) loadSlots(); }, 60000);''
 # 3) confirmation copy now that both phones get a text
 R("Christopher will text <span class=\"num\">${esc(state.phone)}</span> to confirm.", "We just texted <span class=\"num\">${esc(state.phone)}</span> the details. Christopher will text to confirm.")
 R("This preview couldn't save your request by itself.", "We couldn't save your request just now.")
+# 3b) all booking happens on this site: no Square hand-off
+R('const SQUARE = "https://book.squareup.com/appointments/ejiooxptyzqtr0/location/L72H9YAYZBYYJ/services";\n', "")
+R('''      <a class="btn ${s ? "btn-line" : "btn-ink"}" href="${SQUARE}" target="_blank" rel="noopener">${s ? "Pay ahead on Square" : "Finish on Square"}</a>
+''', "")
+R("We couldn't save your request just now. Copy it and text it to <span class=\"num\">${PHONE}</span>, or finish on the Square booking page.", "We couldn't save your request just now. Text it to <span class=\"num\">${PHONE}</span> and we'll get you scheduled.")
 # 4) staff link in the footer area replaces the in-page owner inbox
 R('<div id="owner" hidden style="margin-top:56px">', '<div id="owner" hidden style="display:none">')
 R('<a class="staff-link" href="#staff">Staff</a>', '<a class="staff-link" href="/staff" rel="nofollow">Staff</a>')
