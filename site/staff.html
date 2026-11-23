@@ -90,6 +90,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .login label { display: block; font-size: 13px; color: var(--mute); margin: 12px 0 4px; }
 .login input { width: 100%; background: var(--bg); border: 1px solid var(--line); padding: 12px; }
 .login .btn { width: 100%; margin-top: 18px; padding: 14px; }
+.linkbtn { background: none; border: 0; padding: 0; margin-top: 14px; color: var(--mute); font: inherit; font-size: 14px; text-decoration: underline; cursor: pointer; }
+.linkbtn:hover { color: var(--ink, #fff); }
+.err.ok { color: var(--lime); }
 .err { color: var(--bad); min-height: 1.5em; margin: 8px 0 0; font-size: 14px; }
 .note { color: var(--dim); font-size: 14px; margin-top: 10px; }
 input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
@@ -110,12 +113,24 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px s
 
 <div id="login" class="login" hidden>
   <h1>Staff <span style="color:var(--lime)">login</span></h1>
-  <p>Crisp Coat bookings, leads and income.</p>
+  <p>Crisp Coat appointments, income and hours.</p>
   <form id="loginForm">
     <label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
     <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
     <button class="btn btn-lime" type="submit">Log in</button>
     <p class="err" id="loginErr"></p>
+    <button class="linkbtn" type="button" id="forgot">Forgot your password?</button>
+  </form>
+</div>
+
+<div id="setpw" class="login" hidden>
+  <h1>Choose a <span style="color:var(--lime)">password</span></h1>
+  <p id="setpwFor">Only you will know it. Use at least 8 characters.</p>
+  <form id="setpwForm">
+    <label for="np1">New password</label><input id="np1" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="np2">Type it again</label><input id="np2" type="password" autocomplete="new-password" minlength="8" required>
+    <button class="btn btn-lime" type="submit">Save password</button>
+    <p class="err" id="setpwErr"></p>
   </form>
 </div>
 
@@ -184,12 +199,17 @@ const dayLabel = k => fromKey(k).toLocaleDateString("en-US", { weekday: "short",
 const todayKey = () => dkey(new Date());
 const value = b => b.amount != null ? +b.amount : (b.quoted != null ? +b.quoted : 0);
 
+// An invite or reset link lands here with its token in the address; read it before the client consumes it.
+const LINK = new URLSearchParams(location.hash.slice(1));
+const LINK_TYPE = LINK.get("type"), LINK_ERR = LINK.get("error_code") || LINK.get("error");
 const sb = window.supabase.createClient(window.CC_CONFIG.supabaseUrl, window.CC_CONFIG.supabaseAnonKey);
 let bookings = [], weekly = [], blocks = [], apptRange = "upcoming", incRange = "month", calDay = null;
 
 /* ---------- auth ---------- */
 async function start() {
   const { data: { session } } = await sb.auth.getSession();
+  if (LINK_ERR && !session) return showLogin("That link has expired or was already used. Use \"Forgot your password?\" to get a new one.");
+  if (session && (LINK_TYPE === "invite" || LINK_TYPE === "recovery") && !start.pwDone) return showSetPw(session.user.email);
   if (!session) return showLogin();
   const { data: me } = await sb.from("staff").select("email,name").eq("email", session.user.email).maybeSingle();
   if (!me) { await sb.auth.signOut(); return showLogin("That login isn't on the staff list yet."); }
@@ -198,7 +218,30 @@ async function start() {
   await loadAll();
   sb.channel("bk").on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, loadAll).subscribe();
 }
-function showLogin(msg = "") { $("#app").hidden = true; $("#login").hidden = false; $("#loginErr").textContent = msg; }
+function showLogin(msg = "") { $("#app").hidden = true; $("#setpw").hidden = true; $("#login").hidden = false; $("#loginErr").classList.remove("ok"); $("#loginErr").textContent = msg; }
+function showSetPw(email) {
+  $("#app").hidden = true; $("#login").hidden = true; $("#setpw").hidden = false;
+  $("#setpwFor").textContent = "For " + email + ". Only you will know it. Use at least 8 characters.";
+  $("#np1").focus();
+}
+$("#setpwForm").addEventListener("submit", async e => {
+  e.preventDefault(); const a = $("#np1").value, b = $("#np2").value;
+  if (a.length < 8) return ($("#setpwErr").textContent = "Use at least 8 characters.");
+  if (a !== b) return ($("#setpwErr").textContent = "Those two don't match.");
+  const btn = e.submitter; btn.disabled = true; btn.textContent = "Saving…";
+  const { error } = await sb.auth.updateUser({ password: a });
+  btn.disabled = false; btn.textContent = "Save password";
+  if (error) return ($("#setpwErr").textContent = /different/i.test(error.message) ? "Pick a password you haven't used here before." : "Couldn't save that password. Try again.");
+  start.pwDone = true; history.replaceState(null, "", location.pathname); $("#setpw").hidden = true; start();
+});
+$("#forgot").addEventListener("click", async () => {
+  const email = $("#em").value.trim();
+  if (!email) { $("#loginErr").textContent = "Type your email above first."; return $("#em").focus(); }
+  await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/staff" });
+  $("#loginErr").classList.add("ok");
+  $("#loginErr").textContent = "If that email is on the staff list, a link to set a new password is on its way.";
+});
+sb.auth.onAuthStateChange((event, session) => { if (event === "PASSWORD_RECOVERY" && session && !start.pwDone) showSetPw(session.user.email); });
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#loginErr").textContent = "";
   const { error } = await sb.auth.signInWithPassword({ email: $("#em").value.trim(), password: $("#pw").value });
