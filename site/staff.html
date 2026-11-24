@@ -73,6 +73,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .hours .h { font-size: 12px; color: var(--mute); text-align: center; }
 .hours button { border: 1px solid var(--line); background: var(--bg); padding: 8px 0; cursor: pointer; font-weight: 700; font-size: 13px; color: var(--dim); }
 .hours button[aria-pressed="true"] { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+.calhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.calhead b { font-size: 18px; }
+.calnav { width: 40px; height: 40px; border: 1px solid var(--line); background: var(--bg); color: inherit; font-size: 22px; cursor: pointer; }
+.calnav:disabled { opacity: .3; cursor: default; }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .cal .dow { font-size: 12px; color: var(--mute); text-align: center; }
 .cal button { border: 1px solid var(--line); background: var(--bg); padding: 8px 0; cursor: pointer; text-align: center; }
@@ -176,6 +180,7 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px s
         </div>
         <div class="panel"><h3>Days off &amp; blocked times</h3>
           <p class="who" style="margin:0 0 12px">Pick a day, then block the whole day or single start times.</p>
+          <div class="calhead" id="calHead"></div>
           <div class="cal" id="cal"></div>
           <div id="dayPanel"></div>
         </div>
@@ -203,7 +208,8 @@ const value = b => b.amount != null ? +b.amount : (b.quoted != null ? +b.quoted 
 const LINK = new URLSearchParams(location.hash.slice(1));
 const LINK_TYPE = LINK.get("type"), LINK_ERR = LINK.get("error_code") || LINK.get("error");
 const sb = window.supabase.createClient(window.CC_CONFIG.supabaseUrl, window.CC_CONFIG.supabaseAnonKey);
-let bookings = [], weekly = [], blocks = [], apptRange = "upcoming", incRange = "month", calDay = null;
+let bookings = [], weekly = [], blocks = [], apptRange = "upcoming", incRange = "month", calDay = null, calM = 0;
+const CAL_MONTHS = 12; // staff can set availability up to a year ahead
 
 /* ---------- auth ---------- */
 async function start() {
@@ -365,12 +371,15 @@ function renderAvail() {
   $("#weekly").innerHTML = `<span></span>${ALL_HOURS.map(h => `<span class="h">${hourLabel(h)}</span>`).join("")}` +
     order.map(wd => { const hrs = (weekly.find(w => w.weekday === wd) || { hours: [] }).hours;
       return `<span>${DOW[wd]}</span>${ALL_HOURS.map(h => `<button data-wd="${wd}" data-h="${h}" aria-pressed="${hrs.includes(h)}" aria-label="${DOW[wd]} ${hourLabel(h)}">${hrs.includes(h) ? "Open" : "Off"}</button>`).join("")}`; }).join("");
-  const now = new Date(), days = [];
-  for (let i = 0; i < 35; i++) days.push(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i));
+  const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate()), days = [];
+  calM = Math.max(0, Math.min(CAL_MONTHS, calM));
+  const first = new Date(today.getFullYear(), today.getMonth() + calM, 1);
+  for (let d = new Date(first); d.getMonth() === first.getMonth(); d.setDate(d.getDate() + 1)) if (d >= today) days.push(new Date(d));
   const lead = (days[0].getDay() + 6) % 7;
+  $("#calHead").innerHTML = `<button class="calnav" data-calm="-1" aria-label="Previous month" ${calM > 0 ? "" : "disabled"}>‹</button><b>${first.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button class="calnav" data-calm="1" aria-label="Next month" ${calM < CAL_MONTHS ? "" : "disabled"}>›</button>`;
   $("#cal").innerHTML = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => `<span class="dow">${d}</span>`).join("") + Array(lead).fill("<span></span>").join("") +
     days.map(d => { const k = dkey(d), off = blocks.some(b => b.day === k && b.hour == null), n = bookings.filter(b => b.day === k && b.status !== "cancelled").length;
-      return `<button data-day="${k}" class="${off ? "off" : ""}" aria-pressed="${k === calDay}"><small>${d.toLocaleDateString("en-US", { month: "short" })}</small><b>${d.getDate()}</b><small>${off ? "Off" : n ? n + " booked" : "&nbsp;"}</small></button>`; }).join("");
+      return `<button data-day="${k}" class="${off ? "off" : ""}" aria-pressed="${k === calDay}"><b>${d.getDate()}</b><small>${off ? "Off" : n ? n + " booked" : "&nbsp;"}</small></button>`; }).join("");
   if (!calDay) return ($("#dayPanel").innerHTML = "");
   const wd = fromKey(calDay).getDay(), hrs = (weekly.find(w => w.weekday === wd) || { hours: [] }).hours;
   const dayOff = blocks.some(b => b.day === calDay && b.hour == null);
@@ -384,6 +393,8 @@ function renderAvail() {
     ${bookings.some(b => b.day === calDay && b.status !== "cancelled") && !dayOff ? "" : ""}`;
 }
 $("#avail").addEventListener("click", async e => {
+  const cm = e.target.closest("[data-calm]");
+  if (cm) { calM += +cm.dataset.calm; return renderAvail(); }
   const w = e.target.closest("[data-wd]"), d = e.target.closest("[data-day]"), off = e.target.closest("[data-dayoff]"), bh = e.target.closest("[data-blockh]");
   if (w) {
     const wd = +w.dataset.wd, h = +w.dataset.h, row = weekly.find(x => x.weekday === wd) || { weekday: wd, hours: [] };

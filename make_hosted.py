@@ -42,7 +42,7 @@ async function loadSlots() {
     const t = new Set();
     Object.entries(days).forEach(([k, open]) => SLOTS.forEach(h => { if (!open.includes(h)) t.add(k + "T" + h); }));
     const now = new Date();
-    for (let i = 0; i < 21; i++) { const k = dkey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)); if (!(k in days)) SLOTS.forEach(h => t.add(k + "T" + h)); }
+    for (let i = 0; i <= HORIZON; i++) { const k = dkey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)); if (!(k in days)) SLOTS.forEach(h => t.add(k + "T" + h)); }
     taken = t; if (!state.ref && state.step === 1) renderBooking();
   } catch (e) {}
 }

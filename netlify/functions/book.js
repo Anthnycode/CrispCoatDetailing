@@ -18,6 +18,8 @@ exports.handler = async (event) => {
     // Is the time still offered?
     const { day: today, hour: nowH } = nowLocal();
     if (day < today || (day === today && hour - 1 <= nowH)) return json(409, { error: "taken" });
+    const max = new Date(today + "T12:00:00Z"); max.setUTCDate(max.getUTCDate() + 183);
+    if (day > max.toISOString().slice(0, 10)) return json(409, { error: "taken" });
     const wd = new Date(day + "T12:00:00Z").getUTCDay();
     const [[weekly], blocks] = await Promise.all([
       sb(`weekly_hours?select=hours&weekday=eq.${wd}`),

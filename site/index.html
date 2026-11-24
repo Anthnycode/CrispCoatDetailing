@@ -343,6 +343,11 @@ textarea { min-height: 92px; resize: vertical; }
 .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .dow { font-weight: 700; font-size: 12px; color: var(--dim); text-align: center; text-transform: uppercase; }
 .day { background: var(--bg); border: 1px solid var(--line); padding: 8px 2px; cursor: pointer; color: var(--text); font: inherit; display: grid; text-align: center; min-width: 0; }
+.calhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.calhead b { font-family: "Barlow Condensed", sans-serif; font-style: italic; font-weight: 800; font-size: 24px; text-transform: uppercase; letter-spacing: .01em; }
+.calnav { width: 44px; height: 44px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 26px; font-weight: 600; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.calnav:hover:not(:disabled) { border-color: var(--lime); color: var(--lime); }
+.calnav:disabled { opacity: .25; cursor: not-allowed; }
 .day small { font-size: 11px; color: var(--dim); text-transform: uppercase; font-weight: 600; }
 .day b { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .day:hover { border-color: var(--dim); }
@@ -872,6 +877,7 @@ const SERVICES = [
 ];
 const TOWNS = ["Beaumont", "Calimesa", "Yucaipa", "Redlands", "Banning", "Cherry Valley", "Loma Linda", "Highland", "Grand Terrace", "Moreno Valley", "Somewhere else"];
 const SLOTS = [6, 8, 10, 12, 14];
+const HORIZON = 183; // customers can book about 6 months ahead
 
 const state = { size: "sedan", scope: "full", pkg: "plus", service: "detail", date: null, hour: null, step: 0,
   name: "", phone: "", email: "", address: "", town: "Beaumont", vehicle: "", notes: "", ref: null, saved: false, agree: false };
@@ -1265,15 +1271,19 @@ function paneService() {
   <div class="pane-foot"><span></span><button type="button" class="btn btn-ink" data-next>Pick a time <span class="arr">→</span></button></div>`;
 }
 function isPast(k, h) { const d = fromKey(k); d.setHours(h - 1); return d < new Date(); }
+function calMonths() { const n = new Date(), last = new Date(n.getFullYear(), n.getMonth(), n.getDate() + HORIZON); return (last.getFullYear() - n.getFullYear()) * 12 + last.getMonth() - n.getMonth(); }
 function paneTime() {
-  const now = new Date(), days = [];
-  for (let i = 0; i < 21; i++) days.push(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i));
-  const lead = (days[0].getDay() + 6) % 7;
+  const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate()), lastDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + HORIZON);
+  state.calM = Math.max(0, Math.min(calMonths(), state.calM || 0));
+  const first = new Date(today.getFullYear(), today.getMonth() + state.calM, 1), days = [];
+  for (let d = new Date(first); d.getMonth() === first.getMonth(); d.setDate(d.getDate() + 1)) days.push(new Date(d));
+  const lead = (first.getDay() + 6) % 7;
   const cells = Array(lead).fill("<span></span>").concat(days.map(d => {
-    const k = dkey(d), open = SLOTS.some(h => !isPast(k, h) && !taken.has(k + "T" + h));
-    return `<button type="button" class="day" data-date="${k}" aria-pressed="${k === state.date}" ${open ? "" : "disabled"} aria-label="${dateLabel(k)}"><small>${d.toLocaleDateString("en-US", { month: "short" })}</small><b>${d.getDate()}</b></button>`;
+    const k = dkey(d), inRange = d >= today && d <= lastDay, open = inRange && SLOTS.some(h => !isPast(k, h) && !taken.has(k + "T" + h));
+    return `<button type="button" class="day" data-date="${k}" aria-pressed="${k === state.date}" ${open ? "" : "disabled"} aria-label="${dateLabel(k)}"><b>${d.getDate()}</b></button>`;
   })).join("");
   return `<h3>When should we come?</h3>
+  <div class="calhead"><button type="button" class="calnav" data-calm="-1" aria-label="Previous month" ${state.calM > 0 ? "" : "disabled"}>‹</button><b>${first.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button type="button" class="calnav" data-calm="1" aria-label="Next month" ${state.calM < calMonths() ? "" : "disabled"}>›</button></div>
   <div class="days">${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => `<span class="dow">${d}</span>`).join("")}${cells}</div>
   ${state.date ? `<div class="field"><span class="flabel">Start time · ${esc(dateLabel(state.date))}</span><div class="slots">${SLOTS.map(h => {
       const off = isPast(state.date, h) || taken.has(state.date + "T" + h);
@@ -1341,6 +1351,7 @@ $("#book").addEventListener("click", async e => {
   else if (d.bsize) state.size = d.bsize;
   else if (d.bpkg) state.pkg = d.bpkg;
   else if (d.bscope) state.scope = d.bscope;
+  else if (d.calm) state.calM = (state.calM || 0) + +d.calm;
   else if (d.date) { state.date = d.date; if (state.hour != null && (isPast(d.date, state.hour) || taken.has(d.date + "T" + state.hour))) state.hour = null; }
   else if (d.hour) state.hour = +d.hour;
   else if (d.step != null) state.step = +d.step;
@@ -1594,7 +1605,7 @@ async function loadSlots() {
     const t = new Set();
     Object.entries(days).forEach(([k, open]) => SLOTS.forEach(h => { if (!open.includes(h)) t.add(k + "T" + h); }));
     const now = new Date();
-    for (let i = 0; i < 21; i++) { const k = dkey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)); if (!(k in days)) SLOTS.forEach(h => t.add(k + "T" + h)); }
+    for (let i = 0; i <= HORIZON; i++) { const k = dkey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)); if (!(k in days)) SLOTS.forEach(h => t.add(k + "T" + h)); }
     taken = t; if (!state.ref && state.step === 1) renderBooking();
   } catch (e) {}
 }
